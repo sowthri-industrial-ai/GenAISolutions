@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProcurementDemo · Azure-native architecture</title>
+<style>
+  :root {
+    --bg-page: #FAFAF7;
+    --bg-card: #FFFFFF;
+    --bg-soft: #F5F4EE;
+    --text-1: #1F1F1D;
+    --text-2: #5F5E5A;
+    --text-3: #888780;
+    --border: rgba(0,0,0,0.08);
+    --border-strong: rgba(0,0,0,0.14);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.02);
+    --shadow-md: 0 4px 16px -8px rgba(0,0,0,0.18), 0 2px 4px rgba(0,0,0,0.04);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    --purple-50:  #EEEDFE;
+    --purple-100: #CECBF6;
+    --purple-400: #7F77DD;
+    --purple-600: #534AB7;
+    --purple-800: #3C3489;
+    --purple-900: #26215C;
+
+    --teal-50:  #E1F5EE;
+    --teal-100: #9FE1CB;
+    --teal-400: #1D9E75;
+    --teal-600: #0F6E56;
+    --teal-800: #085041;
+    --teal-900: #04342C;
+
+    --gray-50:  #F1EFE8;
+    --gray-100: #D3D1C7;
+    --gray-400: #888780;
+    --gray-600: #5F5E5A;
+    --gray-800: #444441;
+    --gray-900: #2C2C2A;
+
+    --amber-100: #FAC775;
+    --amber-700: #854F0B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-page: #161614;
+      --bg-card: #1F1F1D;
+      --bg-soft: #26262A;
+      --text-1: #ECEAE2;
+      --text-2: #B4B2A9;
+      --text-3: #888780;
+      --border: rgba(255,255,255,0.08);
+      --border-strong: rgba(255,255,255,0.16);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 16px -8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg-page);
+    color: var(--text-1);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding: 32px 20px 48px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 24px; }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--bg-soft); color: var(--text-2);
+    border: 0.5px solid var(--border);
+  }
+  .badge.live { background: var(--teal-100); color: var(--teal-900); border-color: var(--teal-400); }
+  .badge.live .dot { width: 6px; height: 6px; background: var(--teal-600); border-radius: 50%; animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  h1 {
+    font-size: 28px; font-weight: 600; letter-spacing: -0.02em;
+    margin: 0 0 6px; color: var(--text-1);
+  }
+  .subtitle { color: var(--text-2); font-size: 15px; margin: 0 0 18px; }
+
+  /* Legend */
+  .legend {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    padding: 12px 16px; border-radius: var(--radius-md);
+    background: var(--bg-card); border: 0.5px solid var(--border);
+    margin-bottom: 24px; font-size: 12.5px; color: var(--text-2);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Buyer card */
+  .actor {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px; border-radius: var(--radius-md);
+    background: var(--bg-card); border: 0.5px solid var(--border);
+    margin-bottom: 4px; font-size: 14px; box-shadow: var(--shadow-sm);
+  }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--purple-100); color: var(--purple-900);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; flex-shrink: 0;
+  }
+  .actor .who { font-weight: 600; color: var(--text-1); }
+  .actor .quote { color: var(--text-2); font-style: italic; }
+  .actor-arrow { display: flex; justify-content: center; padding: 6px 0; color: var(--text-3); font-size: 18px; }
+
+  /* Tier */
+  .tier {
+    border-radius: var(--radius-lg); padding: 18px 20px 20px;
+    margin-bottom: 6px; border: 0.5px solid;
+    transition: transform 0.25s ease;
+    position: relative;
+  }
+  .tier-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .tier-tag {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .tier-name { font-size: 16px; font-weight: 600; }
+  .tier-meta { margin-left: auto; font-size: 12px; color: var(--text-3); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .grid { display: grid; gap: 12px; }
+  .g-3 { grid-template-columns: repeat(3, 1fr); }
+  .g-4 { grid-template-columns: repeat(4, 1fr); }
+  .g-1 { grid-template-columns: 1fr; }
+  @media (max-width: 720px) {
+    .g-3, .g-4 { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .tile {
+    position: relative; padding: 14px 14px 13px;
+    border-radius: var(--radius-md); cursor: pointer;
+    background: var(--bg-card); border: 0.5px solid;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    overflow: hidden;
+  }
+  .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .tile:focus { outline: none; }
+  .tile.active { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .tile .name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .tile .desc { font-size: 12px; line-height: 1.45; opacity: 0.85; }
+  .tile .pill {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--amber-100); color: var(--amber-700);
+  }
+  .tile .glyph {
+    width: 24px; height: 24px; margin-bottom: 8px; opacity: 0.8;
+  }
+
+  /* Tier-specific colors */
+  .t-purple { background: rgba(207, 203, 246, 0.18); border-color: rgba(127, 119, 221, 0.3); }
+  .t-purple .tier-tag { background: var(--purple-100); color: var(--purple-900); }
+  .t-purple .tier-name { color: var(--purple-900); }
+  .t-purple .tile { border-color: rgba(127, 119, 221, 0.25); }
+  .t-purple .tile .name { color: var(--purple-800); }
+  .t-purple .tile .desc { color: var(--purple-600); }
+  .t-purple .tile .glyph { color: var(--purple-600); }
+  .t-purple .tile:hover, .t-purple .tile.active { border-color: var(--purple-400); }
+  @media (prefers-color-scheme: dark) {
+    .t-purple { background: rgba(83, 74, 183, 0.14); }
+    .t-purple .tile { background: rgba(60, 52, 137, 0.18); }
+    .t-purple .tile .name { color: var(--purple-100); }
+    .t-purple .tile .desc { color: rgba(207, 203, 246, 0.75); }
+  }
+
+  .t-teal { background: rgba(159, 225, 203, 0.18); border-color: rgba(29, 158, 117, 0.3); }
+  .t-teal .tier-tag { background: var(--teal-100); color: var(--teal-900); }
+  .t-teal .tier-name { color: var(--teal-900); }
+  .t-teal .tile { border-color: rgba(29, 158, 117, 0.25); }
+  .t-teal .tile .name { color: var(--teal-800); }
+  .t-teal .tile .desc { color: var(--teal-600); }
+  .t-teal .tile .glyph { color: var(--teal-600); }
+  .t-teal .tile:hover, .t-teal .tile.active { border-color: var(--teal-400); }
+  .t-teal .featured {
+    grid-column: 1 / -1; padding: 18px 18px 16px;
+    background: linear-gradient(135deg, rgba(159, 225, 203, 0.25) 0%, rgba(159, 225, 203, 0) 100%);
+  }
+  .t-teal .featured .name { font-size: 16px; }
+  .t-teal .featured .desc { font-size: 13px; }
+  @media (prefers-color-scheme: dark) {
+    .t-teal { background: rgba(15, 110, 86, 0.16); }
+    .t-teal .tile { background: rgba(8, 80, 65, 0.2); }
+    .t-teal .tile .name { color: var(--teal-100); }
+    .t-teal .tile .desc { color: rgba(159, 225, 203, 0.75); }
+  }
+
+  .t-gray { background: rgba(211, 209, 199, 0.22); border-color: rgba(136, 135, 128, 0.3); }
+  .t-gray .tier-tag { background: var(--gray-100); color: var(--gray-900); }
+  .t-gray .tier-name { color: var(--gray-900); }
+  .t-gray .tile { border-color: rgba(136, 135, 128, 0.25); }
+  .t-gray .tile .name { color: var(--gray-800); }
+  .t-gray .tile .desc { color: var(--gray-600); }
+  .t-gray .tile .glyph { color: var(--gray-600); }
+  .t-gray .tile:hover, .t-gray .tile.active { border-color: var(--gray-400); }
+  @media (prefers-color-scheme: dark) {
+    .t-gray { background: rgba(95, 94, 90, 0.18); }
+    .t-gray .tile { background: rgba(68, 68, 65, 0.4); }
+    .t-gray .tile .name { color: #ECEAE2; }
+    .t-gray .tile .desc { color: rgba(211, 209, 199, 0.75); }
+  }
+
+  /* Connectors */
+  .connector { display: flex; justify-content: center; padding: 10px 0; position: relative; }
+  .connector svg { width: 36px; height: 32px; }
+  .connector .arrow-path {
+    fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .connector .label {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    margin-left: 56px; font-size: 11.5px; color: var(--text-3);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.02em;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .arrow-path { animation: pulse-stroke 2.4s ease-in-out infinite; }
+    @keyframes pulse-stroke {
+      0%, 100% { stroke-opacity: 0.45; }
+      50% { stroke-opacity: 1; }
+    }
+  }
+
+  /* Detail panel */
+  .detail {
+    margin-top: 22px; padding: 18px 20px;
+    border-radius: var(--radius-md); background: var(--bg-card);
+    border: 0.5px solid var(--border-strong);
+    min-height: 88px; box-shadow: var(--shadow-sm);
+    transition: opacity 0.2s ease;
+  }
+  .detail.empty { color: var(--text-3); font-style: italic; font-size: 13px; }
+  .detail .d-title { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 6px; }
+  .detail .d-body { font-size: 13.5px; color: var(--text-2); line-height: 1.6; margin: 0; }
+  .detail code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+    padding: 1px 6px; border-radius: 4px;
+    background: var(--bg-soft); color: var(--text-1);
+  }
+
+  /* Footer */
+  .footer { margin-top: 28px; font-size: 12px; color: var(--text-3); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="header">
+    <div class="badge-row">
+      <span class="badge live"><span class="dot"></span>Architecture v3.1 · frozen</span>
+      <span class="badge">Microsoft Azure</span>
+      <span class="badge">Single-environment CD</span>
+    </div>
+    <h1>ProcurementDemo</h1>
+    <p class="subtitle">A multi-agent procurement workflow on Microsoft Foundry · MAF v1.0 · Azure-native</p>
+  </header>
+
+  <div class="legend">
+    <span class="legend-item"><span class="swatch" style="background:var(--purple-100)"></span>Your code · Container Apps</span>
+    <span class="legend-item"><span class="swatch" style="background:var(--teal-100)"></span>Foundry-managed · Microsoft</span>
+    <span class="legend-item"><span class="swatch" style="background:var(--gray-100)"></span>Supporting Azure services</span>
+  </div>
+
+  <div class="actor">
+    <span class="avatar">B</span>
+    <span class="who">Buyer</span>
+    <span class="quote">— "Create PO for Project Aurora, $48K, three vendors"</span>
+  </div>
+
+  <div class="actor-arrow">↓</div>
+
+  <!-- TIER 1 — USER FACING -->
+  <section class="tier t-purple">
+    <div class="tier-header">
+      <span class="tier-tag">TIER 1</span>
+      <span class="tier-name">User-facing</span>
+      <span class="tier-meta">Container Apps · scale-to-zero</span>
+    </div>
+    <div class="grid g-3">
+      <div class="tile" data-key="streamlit" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h6"/></svg>
+        <div class="name">Streamlit</div>
+        <div class="desc">Chat UI · agent traces · citations</div>
+      </div>
+      <div class="tile" data-key="fastapi" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="20" cy="18" r="1.5" fill="currentColor"/></svg>
+        <div class="name">FastAPI</div>
+        <div class="desc">REST · Pydantic · bearer auth</div>
+      </div>
+      <div class="tile" data-key="guardrails" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 4v6c0 4.5-3.5 8-8 8s-8-3.5-8-8V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+        <div class="name">Guardrails</div>
+        <div class="desc">Schema · injection · policy · confidence</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="connector">
+    <svg viewBox="0 0 36 32"><path class="arrow-path" d="M18 4 L18 22 M11 17 L18 24 L25 17" stroke="var(--purple-600)"/></svg>
+    <span class="label">request</span>
+  </div>
+
+  <!-- TIER 2 — FOUNDRY -->
+  <section class="tier t-teal">
+    <div class="tier-header">
+      <span class="tier-tag">TIER 2</span>
+      <span class="tier-name">Foundry Agent Service</span>
+      <span class="tier-meta">MAF v1.0 · GA Apr 2026</span>
+    </div>
+
+    <div class="grid g-1">
+      <div class="tile featured" data-key="workflows" tabindex="0">
+        <span class="pill">orchestrator</span>
+        <div class="name">Foundry Workflows</div>
+        <div class="desc">Graph orchestration · checkpoints · multi-agent patterns · human-in-the-loop</div>
+      </div>
+    </div>
+
+    <div class="grid g-3" style="margin-top: 12px;">
+      <div class="tile" data-key="pm" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+        <div class="name">PM Agent</div>
+        <div class="desc">Project context · RAG-grounded</div>
+      </div>
+      <div class="tile" data-key="purchaser" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 7h14l-1.5 11h-11L5 7zM9 7V5a3 3 0 016 0v2"/></svg>
+        <div class="name">Purchaser Agent</div>
+        <div class="desc">Drafts the PO · calls tools</div>
+      </div>
+      <div class="tile" data-key="compliance" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12l2 2 4-4"/><path d="M5 7v10a4 4 0 004 4h6a4 4 0 004-4V7l-7-4-7 4z"/></svg>
+        <div class="name">Compliance Agent</div>
+        <div class="desc">Validates against standards</div>
+      </div>
+    </div>
+
+    <div class="grid g-3" style="margin-top: 12px;">
+      <div class="tile" data-key="iq" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/></svg>
+        <div class="name">Foundry IQ</div>
+        <div class="desc">RAG · hybrid search · citations</div>
+      </div>
+      <div class="tile" data-key="toolbox" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M9 8V5h6v3"/><path d="M3 13h18"/></svg>
+        <div class="name">Foundry Toolbox</div>
+        <div class="desc">MCP-native · single endpoint</div>
+      </div>
+      <div class="tile" data-key="memory" tabindex="0">
+        <span class="pill">preview</span>
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3a4 4 0 014 4v3a4 4 0 014 4v3a4 4 0 01-4 4h-8a4 4 0 01-4-4v-3a4 4 0 014-4V7a4 4 0 014-4z"/></svg>
+        <div class="name">Foundry Memory</div>
+        <div class="desc">Per-buyer · cross-session</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="connector">
+    <svg viewBox="0 0 36 32"><path class="arrow-path" d="M18 4 L18 22 M11 17 L18 24 L25 17" stroke="var(--teal-600)" style="animation-delay:.4s"/></svg>
+    <span class="label">writes / lookups</span>
+  </div>
+
+  <!-- TIER 3 — SUPPORTING -->
+  <section class="tier t-gray">
+    <div class="tier-header">
+      <span class="tier-tag">TIER 3</span>
+      <span class="tier-name">Supporting Azure services</span>
+      <span class="tier-meta">storage · identity · observability</span>
+    </div>
+    <div class="grid g-4">
+      <div class="tile" data-key="cosmos" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>
+        <div class="name">Cosmos DB</div>
+        <div class="desc">PO state · audit log</div>
+      </div>
+      <div class="tile" data-key="blob" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3v6h6M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9l-6-6z"/></svg>
+        <div class="name">Blob + ACR</div>
+        <div class="desc">Documents · container images</div>
+      </div>
+      <div class="tile" data-key="entra" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="3"/><path d="M12 13c-3.5 0-6 2.5-6 6h12c0-3.5-2.5-6-6-6z"/><path d="M19 5l1.5 1.5M19 5l-1.5 1.5M19 5v2"/></svg>
+        <div class="name">Entra Agent ID</div>
+        <div class="desc">Per-agent identity</div>
+      </div>
+      <div class="tile" data-key="obs" tabindex="0">
+        <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l4-6 4 4 5-7 5 5"/><circle cx="3" cy="17" r="1.4" fill="currentColor"/><circle cx="7" cy="11" r="1.4" fill="currentColor"/><circle cx="11" cy="15" r="1.4" fill="currentColor"/><circle cx="16" cy="8" r="1.4" fill="currentColor"/><circle cx="21" cy="13" r="1.4" fill="currentColor"/></svg>
+        <div class="name">Observability</div>
+        <div class="desc">Foundry CP · App Insights</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="detail empty" id="detail">Hover or click any service for technical details and rationale.</div>
+
+  <p class="footer">ProcurementDemo · architecture v3.1 · open <code>docs/PROJECT.md</code> for the frozen reference</p>
+</div>
+
+<script>
+  const details = {
+    streamlit: { title: 'Streamlit', body: 'Single-page chat UI for the Buyer persona. Renders agent traces, citations, and the workflow execution graph in expandable panels — built for demo transparency, not production aesthetics. Deployed as a Container App revision behind <code>cd-app.yml</code>.' },
+    fastapi: { title: 'FastAPI', body: 'Thin REST surface — <code>/po</code>, <code>/po/{id}/status</code>, <code>/po/{id}/audit</code>, <code>/health</code>. Validates with Pydantic, calls into Foundry Workflows via the Foundry SDK, hosts the non-LLM Interface Agent for deterministic doc parsing.' },
+    guardrails: { title: 'Guardrails Layer', body: 'Five checks at the API edge: schema enforcement, prompt-injection (heuristic + LLM-as-judge), policy validation (PO threshold, vendor blocklist), confidence thresholding (&lt;0.7 → human-in-the-loop), and Foundry XPIA filters at the agent boundary.' },
+    workflows: { title: 'Foundry Workflows', body: 'Graph-based orchestrator. Two workflows: <code>POCreationWorkflow</code> and <code>ComplianceReviewWorkflow</code>. Native checkpointing for human approval, deterministic replay, and per-node observability. Replaces what would have been Azure Durable Functions in a pre-Foundry world.' },
+    pm: { title: 'PM Agent', body: 'MAF <code>Agent</code> with role: gather scope, budget, and vendor preferences for a given project. Grounded by Foundry IQ. Returns structured output with self-reported confidence.' },
+    purchaser: { title: 'Purchaser Agent', body: 'MAF <code>Agent</code> with role: draft the PO. Calls <code>template_lookup</code>, <code>mock_erp</code>, <code>buyer_history</code> via Foundry Toolbox. Asks clarifying questions via Workflow checkpoint when confidence is low.' },
+    compliance: { title: 'Compliance Agent', body: 'MAF <code>Agent</code> activated for POs above the policy threshold. Validates against synthetic standards corpus via Foundry IQ + <code>standards_engine</code>. Outputs approve/reject with rationale and citations.' },
+    iq: { title: 'Foundry IQ', body: 'Managed RAG over Azure AI Search. Hybrid search (keyword + vector) with semantic ranker. Permission-aware retrieval. Single integration point for all knowledge sources — currently ~30 synthetic procurement documents in Blob.' },
+    toolbox: { title: 'Foundry Toolbox', body: 'MCP-compatible unified endpoint. Four read-only tools: <code>template_lookup</code>, <code>mock_erp</code>, <code>standards_engine</code>, <code>buyer_history</code>. Built-in auth (Entra Agent Identity), tracing, and observability for every call.' },
+    memory: { title: 'Foundry Memory (preview)', body: 'Per-agent persistent memory with native MAF integration. Custom <code>userId</code> header for non-Entra scoping. Billing begins June 1, 2026 — preview-feature regression risk noted in PROJECT.md §III.6.' },
+    cosmos: { title: 'Cosmos DB', body: 'NoSQL serverless. Two containers: <code>po_state</code> for domain records, <code>audit</code> for the immutable audit trail. Owned by the Task Agent (non-LLM). Managed-identity access from Container Apps.' },
+    blob: { title: 'Blob + Container Registry', body: 'Blob holds the synthetic document corpus consumed by Foundry IQ. ACR holds container images for FastAPI, Streamlit, and Foundry hosted-agent deployments — required for hosted-agent rollouts.' },
+    entra: { title: 'Microsoft Entra Agent ID', body: 'Per-agent identity issued at hosted-agent deployment. Each agent uses its own identity to access models, tools, and downstream services — separate from the Foundry project managed identity used for infra operations.' },
+    obs: { title: 'Observability', body: 'Foundry Control Plane is primary — out-of-the-box agent and workflow traces, token counts, per-execution cost. App Insights + Log Analytics handle non-Foundry telemetry (FastAPI, Streamlit, Task Agent). Saved KQL queries form the demo dashboards.' }
+  };
+
+  const detailEl = document.getElementById('detail');
+  let activeTile = null;
+
+  document.querySelectorAll('.tile').forEach((tile) => {
+    const key = tile.getAttribute('data-key');
+    const fill = () => {
+      const d = details[key];
+      if (!d) return;
+      detailEl.classList.remove('empty');
+      detailEl.innerHTML = `<p class="d-title">${d.title}</p><p class="d-body">${d.body}</p>`;
+      if (activeTile && activeTile !== tile) activeTile.classList.remove('active');
+      tile.classList.add('active');
+      activeTile = tile;
+    };
+    tile.addEventListener('mouseenter', fill);
+    tile.addEventListener('click', fill);
+    tile.addEventListener('focus', fill);
+    tile.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fill(); }
+    });
+  });
+</script>
+</body>
+</html>
