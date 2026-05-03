@@ -1,6 +1,6 @@
 # Procurement Agentic Demo — Project Document
 
-**Version:** v3.1 (Frozen — Azure-native architecture; no employer references)
+**Version:** v3.2 (Frozen — adds lifecycle & cost discipline)
 **Last Updated:** 2026-05-02
 **Status:** Frozen — changes require a change-request turn
 **Companion:** [`BACKLOG.md`](./BACKLOG.md) — the live status tracker
@@ -490,8 +490,79 @@ These are the risks the architect actively watches for and will surface unprompt
 
 ---
 
+## III.7 Lifecycle & Cost Discipline
+
+The project runs on a **daily teardown / cold-start** lifecycle. The Azure environment is brought up at the start of a work session and torn down at the end. This keeps idle cost under $1/day and forces the entire stack to remain reproducible from a single command.
+
+### Teardown protocol — `make azd-down` (end of every work session)
+
+`azd down --force --purge` deletes the resource group and everything in it. No state preserved in Azure between sessions. The Git repository is the source of truth.
+
+What gets deleted:
+- All Foundry resources: project, hosted agents, Toolbox registrations, Memory.
+- Azure AI Search (used by Foundry IQ).
+- Cosmos DB account.
+- Container Apps environment, ACR, Storage account, Log Analytics, App Insights, Key Vault.
+
+What does **not** get deleted:
+- The GitHub repo, Bicep code, Python code, demo data corpus, ADRs.
+- The OIDC service principal at the tenant level (re-used across `up`/`down` cycles).
+
+### Cold-start protocol — `make azd-up` (start of a work session or interview)
+
+A single command brings everything back. Target: **under 10 minutes** from cold to live demo.
+
+1. `azd up` — provisions all infra via Bicep, deploys container images from ACR, registers Foundry hosted agents.
+2. Document re-ingestion runs automatically as a Container App job: walks `data/`, uploads to Blob, triggers Foundry IQ knowledge-source refresh.
+3. Smoke test confirms `/health` returns 200 and one agent invocation succeeds.
+
+If `azd up` exceeds 12 minutes, that is a regression to be debugged.
+
+### Per-resource lifecycle policy
+
+| Resource | Idle behavior | Cold-start time |
+|---|---|---|
+| Container Apps (FastAPI, Streamlit, Toolbox sidecar) | Scale-to-zero — kept; ~$0 idle | ~30s warm-up |
+| Azure OpenAI deployments | No provisioned cost (pay per token) | n/a |
+| Foundry hosted agents | **Deleted nightly** (per-vCPU-hour billing) | ~3 min via `azd up` |
+| Foundry project | Kept (no idle cost) — but recreated on full `azd down` | ~5 min |
+| Foundry IQ + Azure AI Search | **Deleted nightly** ($73/mo if kept; we delete instead) | ~3-4 min including re-ingest |
+| Cosmos DB serverless | Deleted nightly with RG | ~2 min |
+| Blob storage | Deleted nightly with RG | ~30s |
+| ACR Basic | Deleted nightly with RG | ~1 min |
+| Log Analytics + App Insights | Deleted nightly with RG | ~1 min |
+| Key Vault | Deleted nightly with **`--purge`** flag | ~30s |
+
+### Cost targets
+
+- **Active dev (~6 hours/day):** under $5/day — actual cost trends with model usage.
+- **Idle (between sessions):** under $1/day — primarily ACR if not deleted; near-zero if RG is fully torn down.
+- **Median per-PO end-to-end cost in production:** under $0.30 (already in §III.6 risk #3).
+
+### Interview walkthrough runbook
+
+A separate document (`docs/walkthrough.md`, story M4.7.5) provides the exact sequence for an interview demo:
+1. ~10 minutes before the call: `make azd-up`.
+2. ~5 minutes before: smoke-test the live URL, open the Foundry portal in a tab.
+3. During the call: the demo script in `docs/demo-script.md` (story M4.5).
+4. After the call: `make azd-down`.
+
+This runbook is critical because the cost discipline means we can't afford to leave the stack running between interviews.
+
+### Implications for Bicep design
+
+Every Bicep module must satisfy:
+- Idempotent `azd up` (re-running with no changes produces no diffs).
+- Clean `azd down` (every resource deletes, nothing orphaned).
+- Soft-deleted resources (Key Vault, Cosmos DB) must be **purged**, not soft-deleted, so the same names can be re-used the next day.
+
+These are baked into M1.3 acceptance criteria.
+
+---
+
 ## Change Log
 
+- **v3.2 (2026-05-02)** — Added §III.7 Lifecycle & Cost Discipline. Project now runs on a daily teardown / cold-start cycle: `make azd-down` at end of session deletes the resource group; `make azd-up` brings it back in under 10 minutes. Azure AI Search deleted nightly to avoid the ~$73/mo idle cost; corpus is re-ingested automatically on cold-start. Bicep modules must support clean teardown including purge of soft-deleted resources. Affects backlog stories M1.3, M1.6, M2.3 (AC additions); adds M1.3.5 (lifecycle scripts) and M4.7.5 (interview walkthrough runbook).
 - **v3.1 (2026-05-02)** — Added explicit "no employer references" non-goal in §I.3. Removed the one residual mention of a specific employer from the v3.0 change log entry. This rule is now enforceable for future architects and implementers.
 - **v3.0 (2026-05-02)** — **Major rewrite to Azure-native stack.** Replaced LangGraph with Microsoft Agent Framework v1.0 (GA April 2026) as the agent SDK. Replaced Azure Durable Functions as primary orchestrator with Foundry Workflows; Durable Functions retained only for non-LLM batch (deferred). Added Foundry IQ for RAG, Foundry Toolbox for MCP-native tools, Foundry Memory for agent memory, Foundry Control Plane for observability. Added Microsoft Entra Agent Identity. Added ACR Bicep module (required for hosted agents). Repo layout: added `backend/workflows/`, removed `backend/orchestrators/` (Durable Functions deferred). Added new ADR slots. Stack alignment driven by Microsoft's GA agentic platform as of April-May 2026 (MAF v1.0 + Foundry Agent Service + Foundry Workflows).
 - **v2.0 (2026-05-02)** — Consolidated `architecture.md` v1.1 and `working-agreement.md` v1.1 into a single document. Two-document model: `PROJECT.md` + `BACKLOG.md`.

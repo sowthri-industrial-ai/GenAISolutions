@@ -1,6 +1,6 @@
 # Backlog & Status Tracker — Procurement Agentic Demo
 
-**Version:** v3.1
+**Version:** v4.0
 **Last Updated:** 2026-05-02
 **Companion:** [`PROJECT.md`](./PROJECT.md) — the frozen architecture and working agreement (v3.0 — Azure-native)
 
@@ -14,14 +14,14 @@
 
 | Milestone | Done | Total | % |
 |---|---|---|---|
-| M1 — Foundation | 1 | 6 | 17% |
+| M1 — Foundation | 2 | 7 | 29% |
 | M2 — Agents + RAG | 0 | 7 | 0% |
 | M3 — Multi-agent + Workflows + Guardrails | 0 | 8 | 0% |
-| M4 — Polish + Demo | 0 | 7 | 0% |
-| **Total** | **1** | **28** | **4%** |
+| M4 — Polish + Demo | 0 | 8 | 0% |
+| **Total** | **2** | **30** | **7%** |
 
-**Currently in flight:** M1.2 — ADR 0001 + README link
-**Last closed:** M1.1 — Repo skeleton (2026-05-02)
+**Currently in flight:** _(none)_
+**Last closed:** M1.2 — ADR 0001 + README v3.1 alignment (2026-05-02)
 
 ---
 
@@ -53,22 +53,22 @@
 - **Notes:** ruff 0.6.9, black 24.10.0, pytest 8.3.3, pre-commit 4.0.1. POSIX-portable Makefile with `PYTHON ?= python3.11`. Folder layout from PROJECT.md v2.0 — will need a touch-up in M1.3 to add `backend/workflows/` per v3.0 (small, will fold into M1.3 prep).
 
 ### M1.2 — Architecture, backlog, ADR 0001 committed
-- **Status:** 🟡 In Progress
+- **Status:** 🟢 Done
 - **Depends on:** M1.1
 - **Description:** Architecture and backlog already committed (M1.1 push). Remaining: write the first ADR (`0001-foundry-and-maf-not-langgraph-standalone.md`) capturing the v3.0 architectural decision. Touch up the README to link the new ADR.
 - **Acceptance Criteria:**
-  - [ ] `docs/PROJECT.md` (v3.0) and `docs/BACKLOG.md` (v3.0) present and rendered correctly on GitHub
-  - [ ] ADR 0001 written using Michael Nygard format (Title, Status, Date, Context, Decision, Consequences, Alternatives Considered)
-  - [ ] ADR 0001 covers at least: Foundry + MAF, vanilla LangGraph standalone, AutoGen-only, custom orchestrator
-  - [ ] ADR Consequences section includes at least one honest negative tradeoff (preview features, vendor lock-in, cost model)
-  - [ ] README links to PROJECT.md, BACKLOG.md, and the ADR folder
-- **Closed:**
-- **Notes:**
+  - [x] `docs/PROJECT.md` (v3.1) and `docs/BACKLOG.md` (v3.1) present and rendered correctly on GitHub
+  - [x] ADR 0001 written using Michael Nygard format (Title, Status, Date, Context, Decision, Consequences, Alternatives Considered)
+  - [x] ADR 0001 covers at least: Foundry + MAF, vanilla LangGraph standalone, AutoGen-only, custom orchestrator
+  - [x] ADR Consequences section includes at least one honest negative tradeoff (preview features, vendor lock-in, cost model)
+  - [x] README links to PROJECT.md, BACKLOG.md, and the ADR folder
+- **Closed:** 2026-05-02 — All 5 AC met. ADR delivered at 1,479 words covering all four required alternatives and four honest negatives (preview-feature risk, Azure lock-in, MAF post-GA API maturity, hosted-agent cost). Required gap-fix pass on README to align v2.0 stale content (opening blurb, demonstrates table, folder paths, version reference) with v3.1 architecture; gap-fix executed cleanly with section-number cross-verification.
+- **Notes:** Process learning — when architecture version-bumps in future, README consistency check must be folded into the same change request, not deferred. Rule added to architect's mental checklist; will codify in PROJECT.md change-control protocol if it recurs.
 
 ### M1.3 — Bicep infra skeleton (pre-Foundry)
 - **Status:** 🔵
 - **Depends on:** M1.1
-- **Description:** Bicep modules for resource group, Log Analytics workspace, Application Insights, Key Vault, Storage account, and Azure Container Registry. `main.bicep` composes them. **Foundry resources land in M1.6.** Adds `backend/workflows/` directory to bring the repo layout to PROJECT.md v3.0.
+- **Description:** Bicep modules for resource group, Log Analytics workspace, Application Insights, Key Vault, Storage account, and Azure Container Registry. `main.bicep` composes them. **Foundry resources land in M1.6.** Adds `backend/workflows/` directory to bring the repo layout to PROJECT.md v3.0. Per PROJECT.md §III.7, modules must support clean daily teardown.
 - **Acceptance Criteria:**
   - [ ] `infra/main.bicep`, `infra/main.bicepparam`, modules in `infra/modules/` per PROJECT.md §II.5
   - [ ] Modules: `monitoring.bicep` (LA + App Insights), `storage.bicep`, `acr.bicep`. Key Vault inside `monitoring.bicep` or its own module — implementer's call.
@@ -76,13 +76,30 @@
   - [ ] Outputs include resource IDs and connection strings (where applicable)
   - [ ] Tags applied to every resource: `project=procurement-agentic-demo`, `env=dev`, `owner=[name]`
   - [ ] Idempotent: re-running produces no diffs
+  - [ ] **Clean teardown:** `azd down --force --purge` removes all resources without orphans; Key Vault uses purge-protection-disabled config so it can be deleted+recreated daily
+  - [ ] **Cold-start time:** `azd up` from empty subscription completes in ≤8 minutes (this baseline; full Foundry adds ~3 min in M1.6)
   - [ ] `backend/workflows/.gitkeep` added to repo layout
+- **Closed:**
+- **Notes:**
+
+### M1.3.5 — Lifecycle scripts (`make azd-up` / `make azd-down`)
+- **Status:** 🔵
+- **Depends on:** M1.3
+- **Description:** Wraps `azd up` and `azd down` in Makefile targets with timing instrumentation, smoke checks, and clear status output. Implements the daily teardown / cold-start protocol from PROJECT.md §III.7.
+- **Acceptance Criteria:**
+  - [ ] `make azd-up` runs `azd up`, prints elapsed time, runs `/health` smoke test, prints the live URL
+  - [ ] `make azd-down` runs `azd down --force --purge`, confirms resource group is fully gone, prints elapsed time
+  - [ ] `make azd-status` prints whether the RG exists, current cost-day estimate, and last `azd up` timestamp
+  - [ ] Both `up` and `down` are idempotent: re-running succeeds and is fast (no error if already in target state)
+  - [ ] Failures during `azd up` produce clear diagnostic output (which Bicep module failed, link to log)
+  - [ ] README quickstart updated to reference the lifecycle commands
+  - [ ] Cold-start time logged to `tests/cold-start-history.csv` (timestamp, duration, success); used as the regression baseline for ≤10 min target
 - **Closed:**
 - **Notes:**
 
 ### M1.4 — FastAPI hello-world deployed
 - **Status:** 🔵
-- **Depends on:** M1.3
+- **Depends on:** M1.3, M1.3.5
 - **Description:** Minimal FastAPI app with `/health` and `/version` endpoints. Containerized. Deployed to Azure Container Apps via Bicep + workflow. Image pushed to ACR.
 - **Acceptance Criteria:**
   - [ ] `backend/api/` contains a working FastAPI app
@@ -114,7 +131,7 @@
 ### M1.6 — Foundry project + Azure OpenAI provisioned
 - **Status:** 🔵
 - **Depends on:** M1.3
-- **Description:** Provision Microsoft Foundry project, Foundry Agent Service enabled, two Azure OpenAI model deployments (`gpt-4o` and `text-embedding-3-large`) accessible via the Foundry project endpoint. Container App uses managed identity with appropriate Foundry/OpenAI roles. Adds `foundry.bicep`.
+- **Description:** Provision Microsoft Foundry project, Foundry Agent Service enabled, two Azure OpenAI model deployments (`gpt-4o` and `text-embedding-3-large`) accessible via the Foundry project endpoint. Container App uses managed identity with appropriate Foundry/OpenAI roles. Adds `foundry.bicep`. Per PROJECT.md §III.7, hosted-agent resources must support clean nightly teardown.
 - **Acceptance Criteria:**
   - [ ] `infra/modules/foundry.bicep` provisions Foundry project + Agent Service
   - [ ] Two model deployments exist and are reachable via the Foundry project endpoint
@@ -123,6 +140,8 @@
   - [ ] A `/test/foundry` dev-only endpoint (behind a flag) confirms a successful chat completion via `FoundryChatClient`
   - [ ] No API keys in code or env — managed identity only for app; OIDC for CI
   - [ ] Tokens-per-minute quotas documented in README troubleshooting
+  - [ ] **`azd down --force --purge` cleanly removes Foundry project + hosted agents** (no orphans, no soft-delete blockers preventing same-name recreation next day)
+  - [ ] **`azd up` cold-start including Foundry provisioning completes in ≤10 minutes total**
 - **Closed:**
 - **Notes:**
 
@@ -161,12 +180,14 @@
 ### M2.3 — Document ingestion pipeline
 - **Status:** 🔵
 - **Depends on:** M2.1, M2.2
-- **Description:** A `backend/rag/ingest.py` script: walks `data/`, uploads to Blob, registers/refreshes the Foundry IQ knowledge source. Foundry IQ handles chunking + embedding + indexing.
+- **Description:** A `backend/rag/ingest.py` script: walks `data/`, uploads to Blob, registers/refreshes the Foundry IQ knowledge source. Foundry IQ handles chunking + embedding + indexing. Per PROJECT.md §III.7, ingestion must run automatically on every cold-start (since AI Search is deleted nightly).
 - **Acceptance Criteria:**
   - [ ] CLI: `python -m backend.rag.ingest --source data/ --knowledge-source procurement-v1`
   - [ ] Idempotent: re-running with no doc changes triggers a no-op (or a delta refresh) at Foundry IQ
   - [ ] Uploaded blobs include metadata: `doc_id`, `type`, `title`, `tags`
   - [ ] Logs total docs uploaded, indexing status, dollars at current pricing (best-effort estimate)
+  - [ ] **Cold-start integration:** ingestion runs automatically as part of `make azd-up`, either as a Container App job or as a post-deploy step in the lifecycle Makefile target. Total ingestion time logged.
+  - [ ] **Cold-ingest completes in ≤4 minutes** for the full ~30-doc corpus (target consistent with §III.7 cold-start budget)
 - **Closed:**
 - **Notes:**
 
@@ -423,11 +444,26 @@
 - **Closed:**
 - **Notes:**
 
+### M4.7.5 — Interview walkthrough runbook
+- **Status:** 🔵
+- **Depends on:** M1.3.5, M4.5
+- **Description:** `docs/walkthrough.md` — the timed cold-start runbook for an interview demo. Per PROJECT.md §III.7, the runbook is the operational counterpart to the demo script: how to bring the stack up reliably under time pressure.
+- **Acceptance Criteria:**
+  - [ ] `docs/walkthrough.md` written with sections: Pre-flight (T-15 min), Cold-start (T-10 min), Smoke verification (T-5 min), During the call (links to demo-script.md), Teardown (post-call)
+  - [ ] Each section has a checklist with explicit commands (`make azd-up`, expected output, verification curl, etc.)
+  - [ ] Recovery procedures documented for the 3 most likely failures: quota error, OIDC auth failure, partial Foundry provisioning
+  - [ ] Timing budget per phase documented and verified against `tests/cold-start-history.csv`
+  - [ ] No real names, no employer-specific material, no actual interview specifics
+- **Closed:**
+- **Notes:**
+
 ---
 
 ## Change Log
 
-- **v3.1 (2026-05-02)** — Scrubbed residual employer reference in M4.5 AC (now reads "any employer-specific material"). Aligned with PROJECT.md v3.1 non-goal.
+- **v4.0 (2026-05-02)** — Aligned to PROJECT.md v3.2. Story count 28 → 30: added M1.3.5 (lifecycle scripts) and M4.7.5 (interview walkthrough runbook). AC additions to M1.3 (clean teardown + ≤8 min cold-start), M1.6 (Foundry teardown + ≤10 min full cold-start), M2.3 (cold-start integration + ≤4 min ingest). M1.4 dependency updated to require M1.3.5. Status snapshot recalculated: 2/30 (7%); M1 milestone now 7 stories.
+- **v3.2 (2026-05-02)** — M1.2 closed 🟢. Status snapshot updated (2/28, 7%). ADR 0001 delivered + README v3.1 alignment gap-fix completed.
+- **v3.1 (2026-05-02)** — Scrubbed residual employer reference in M4.5 AC.
 - **v3.0 (2026-05-02)** — Realigned to PROJECT.md v3.0 (Azure-native architecture). M1.6 changed from "Azure OpenAI provisioned" to "Foundry project + Azure OpenAI provisioned" — adds `foundry.bicep`, Foundry Agent Service, Project Manager role assignment. M2.2/M2.3/M2.4 reframed around Foundry IQ instead of raw Azure AI Search. M2.5/M3.1 use MAF + FoundryChatClient instead of LangGraph. M3.2 adds Foundry Memory alongside Cosmos. M3.3 uses Foundry Toolbox sidecar registration instead of standalone HTTP tools. M3.5/M3.6 use Foundry Workflows instead of Azure Durable Functions (Durable Functions deferred to M4.7 production-posture). M4.3 adds Foundry-managed agent evals. M4.7 changed from "Foundry migration paper-design" (no longer needed — we *are* on Foundry) to "production-posture paper-design". Backlog story count unchanged at 28; ~12 stories rewritten in shape, none added or removed.
 - **v2.1 (2026-05-02)** — M1.1 closed 🟢. Status snapshot updated (1/28). Three deviations approved.
 - **v2.0 (2026-05-02)** — Two-document model: PROJECT.md + BACKLOG.md.
