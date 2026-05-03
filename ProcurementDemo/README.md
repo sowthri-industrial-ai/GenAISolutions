@@ -60,12 +60,17 @@ The architecture is **frozen at v3.1** — see **[`docs/PROJECT.md`](docs/PROJEC
 ```bash
 # Prerequisites: Python 3.11, Docker, Azure CLI, azd
 make install
-make run            # local FastAPI on :8000
-make ui             # Streamlit on :8501
+make run            # local FastAPI on :8000  (added in M1.4)
+make ui             # Streamlit on :8501      (added in M2.6)
 
-# Deploy to Azure (single environment — main = live)
-azd up
+# Azure lifecycle — single environment, daily teardown discipline (PROJECT.md §III.7)
+export OWNER_TAG="your-name"
+make azd-up         # provision + deploy (cold-start ≤8 min)
+make azd-status     # show RG state, resources, recent lifecycle history
+make azd-down       # tear down RG + purge soft-deleted Key Vault
 ```
+
+See [`infra/README.md`](infra/README.md) for full details on the lifecycle scripts and prerequisites.
 
 ---
 

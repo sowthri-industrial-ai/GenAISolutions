@@ -1,0 +1,10 @@
+# tests/cold-start-history.csv — local development log of azd lifecycle runs.
+# Appended by `make azd-up` and `make azd-down`. Used as the cold-start
+# regression baseline against the ≤10-minute target in PROJECT.md §III.7.
+# This is a development log, not a production report. Free to prune or edit.
+# Lines starting with `#` are comments and ignored by readers.
+timestamp_iso,command,success,duration_seconds,resource_count,notes
+2026-05-03T10:02:01Z,azd-up,false,17,0,FAILED
+2026-05-03T10:09:46Z,azd-up,true,186,5,
+2026-05-03T10:13:58Z,azd-up,true,33,5,likely-noop
+2026-05-03T10:29:41Z,azd-down,true,720,0,

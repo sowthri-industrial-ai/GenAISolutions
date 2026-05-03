@@ -46,22 +46,40 @@ export OWNER_TAG="your-name"
 
 ## Local lifecycle
 
-The project runs on the **daily teardown / cold-start** discipline from [`PROJECT.md` §III.7](../docs/PROJECT.md). Bring it up at the start of a session, take it down at the end. M1.3 ships placeholder Makefile wrappers; M1.3.5 will add timing and history logging.
+The project runs on the **daily teardown / cold-start** discipline from [`PROJECT.md` §III.7](../docs/PROJECT.md). Bring it up at the start of a session, take it down at the end. The Makefile targets below are implemented in `infra/scripts/azd-lifecycle.sh`; they wrap `azd` with timing, smoke checks, and a development log.
 
-```bash
-# Bring up — provisions infra + (later) deploys app
-make azd-up
+| Target | What it does | Typical duration |
+|---|---|---|
+| `make azd-up` | Provisions all infra (and later, deploys the app). Idempotent — re-runs are fast no-ops. | 4-8 min cold; <2 min if no diff |
+| `make azd-down` | `azd down --force --purge` — deletes the RG and purges any soft-deleted Key Vaults so the same name is reusable next day. | 2-4 min |
+| `make azd-status` | Reports whether the RG exists, lists resources, and shows the last 5 lifecycle events. Always exits 0. | <5 sec |
 
-# Tear down — deletes the resource group, purges soft-deleted KV
-make azd-down
+### Prerequisites for `make azd-up`
 
-# Status — shows whether the RG exists and lists resources
-make azd-status
-```
+| Requirement | How to satisfy |
+|---|---|
+| `OWNER_TAG` env var (non-empty, not `unset`) | `export OWNER_TAG="your-name"` — applied as the `owner` Azure tag on every resource |
+| `az` CLI logged in | `az login` against the target subscription |
+| `azd` CLI installed | `brew install azure-dev` |
+
+If `OWNER_TAG` is missing or set to `unset`, `make azd-up` exits 2 with an instructive error before touching Azure.
+
+### Lifecycle history
+
+Every `azd-up` and `azd-down` run appends one line to `tests/cold-start-history.csv` with timestamp, command, success, duration, resource count, and notes (e.g. `likely-noop` for fast re-runs). The file is committed (header only) so the schema is discoverable; data accumulates locally and is fine to prune. The duration column is the cold-start regression baseline against the ≤10-minute target in PROJECT.md §III.7.
+
+### Configuration knobs
+
+Two env vars override defaults inside the script:
+
+| Var | Default | Used by |
+|---|---|---|
+| `AZD_ENV_NAME` | `procurement-dev` | name of the azd env (created on first `up` if missing) |
+| `AZD_LOCATION` | `eastus2` | Azure region for the env |
 
 Under the hood:
 
-- `azd up` → `az deployment sub create --template-file infra/main.bicep --parameters infra/main.bicepparam` against the subscription `azd` is logged into.
+- `azd up` → Bicep restore + `az deployment sub create` against the subscription the active azd env points at.
 - `azd down --force --purge --no-prompt` → deletes the RG and purges any soft-deleted Key Vaults so the same name can be recreated next day.
 
 ## First-time setup (one per machine)
