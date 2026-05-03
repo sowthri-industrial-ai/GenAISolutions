@@ -1,6 +1,6 @@
 # Backlog & Status Tracker — Procurement Agentic Demo
 
-**Version:** v4.2
+**Version:** v4.3
 **Last Updated:** 2026-05-03
 **Companion:** [`PROJECT.md`](./PROJECT.md) — the frozen architecture and working agreement (v3.0 — Azure-native)
 
@@ -20,7 +20,7 @@
 | M4 — Polish + Demo | 0 | 8 | 0% |
 | **Total** | **4** | **30** | **13%** |
 
-**Currently in flight:** _(none)_
+**Currently in flight:** M1.4 — FastAPI hello-world + minimum-viable CD
 **Last closed:** M1.3.5 — Lifecycle scripts + first verified deploy (2026-05-03)
 
 ---
@@ -97,36 +97,39 @@
 - **Closed:** 2026-05-03 — All 7 AC met (3 with documented partial completion deferring to dependent stories). Cold-start: **186 s (3.1 min)** vs. 8-min AC = **4.9 min headroom**. Idempotency verified: 33 s no-diff. Teardown verified: RG gone, KV fully purged from soft-delete (name reusable). Cost meter at $0/day idle. Four deviations approved.
 - **Notes:** Architecturally significant: `infra/scripts/azd-lifecycle.sh` was added as a script-based orchestrator instead of inline Makefile bash — accepted for testability and confirmed correct call when the script's preflight bug surfaced and was fixed in one edit. Repo layout addition (`infra/scripts/`) to be folded into PROJECT.md §II.5 next time the layout is touched.
 
-### M1.4 — FastAPI hello-world deployed
+### M1.4 — FastAPI hello-world deployed (with minimum-viable CD)
 - **Status:** 🔵
 - **Depends on:** M1.3, M1.3.5
-- **Description:** Minimal FastAPI app with `/health` and `/version` endpoints. Containerized. Deployed to Azure Container Apps via Bicep + workflow. Image pushed to ACR.
+- **Description:** Minimal FastAPI app with `/health` and `/version` endpoints. Containerized. Deployed to Azure Container Apps via Bicep. Image pushed to ACR via the **first working `cd-app.yml`** (GitHub Actions workflow with OIDC federation). M1.5 then polishes/hardens this baseline. Story scope expanded by Owner decision: M1.4 absorbs the minimum-viable CD pipeline rather than deferring to M1.5, so that after M1.4 closes, the full Phase 1 + Phase 2 cold-start orchestration (per PROJECT.md §III.7) is real and demonstrable.
 - **Acceptance Criteria:**
-  - [ ] `backend/api/` contains a working FastAPI app
-  - [ ] Dockerfile builds locally and runs on `:8000`
-  - [ ] Container Apps environment + app provisioned via Bicep module (`containerapps.bicep`)
-  - [ ] Image pushed to ACR provisioned in M1.3
-  - [ ] Public URL returns 200 on `/health`
+  - [ ] `backend/api/` contains a working FastAPI app with `/health` (200 + JSON status) and `/version` (returns commit SHA + build timestamp)
+  - [ ] Dockerfile builds locally and runs on `:8000`; image is small (~200-300 MB), python:3.11-slim base, non-root user
+  - [ ] Container Apps environment + Container App provisioned via new Bicep module (`infra/modules/container-apps.bicep`); attached to existing Log Analytics from M1.3
+  - [ ] **Bootstrap script** (`infra/scripts/bootstrap-oidc.sh`) creates the Entra app registration, federated credential for the GitHub repo, and Contributor role assignment on the RG. Idempotent. Documented in `infra/README.md`. Run once manually by the Owner; outputs the values needed for GitHub repo secrets/variables.
+  - [ ] **`cd-app.yml`** workflow: triggered on push to `main` with paths under `backend/**` or `Dockerfile`; uses OIDC federation (no long-lived secrets); builds image, pushes to ACR with git-SHA tag, updates Container App revision, smoke-tests `/health` returns 200 before completing
+  - [ ] Public URL returns 200 on `/health` after CD pipeline runs
   - [ ] App reads its config from environment variables / Key Vault references (no hard-coded secrets)
+  - [ ] `make azd-up` lifecycle script updated: after `azd up` succeeds, optionally trigger `gh workflow run cd-app.yml` if `--with-app` flag is passed; smoke-tests `/health` before reporting success
+  - [ ] Cold-start time (full Phase 1 + Phase 2) measured and logged to `tests/cold-start-history.csv`; target ≤10 min per PROJECT.md §III.7
 - **Closed:**
-- **Notes:**
+- **Notes:** Owner decision (2026-05-03): chose to absorb the minimum-viable CD pipeline into M1.4 rather than splitting across M1.4/M1.5. Trade-off accepted: M1.4 takes ~2x longer, but after closure the cold-start orchestration is real, not just diagrammed. M1.5 trims to "polish + full coverage" (ci.yml, cd-infra.yml, branch protection, deployment annotations, ADR 0002 documenting the OIDC choice). See M1.5 for what's deferred.
 
-### M1.5 — GitHub Actions CI + CD (single environment)
+### M1.5 — GitHub Actions CI + CD (polish & full coverage)
 - **Status:** 🔵
-- **Depends on:** M1.4
-- **Description:** Three workflows targeting one Azure environment per PROJECT.md §II.2.11. `ci.yml` runs on PR. `cd-infra.yml` and `cd-app.yml` run on push to `main` with path filters. OIDC auth (no long-lived secrets). Service principal needs `Contributor` on RG **and** `Azure AI Project Manager` on the Foundry project (the latter required for hosted-agent deployments — provisioned in M1.6).
-- **Acceptance Criteria:**
+- **Depends on:** M1.4 (which lands the minimum-viable `cd-app.yml` + OIDC federation)
+- **Description:** M1.4 absorbed the **first working** `cd-app.yml` and the **OIDC federation setup** to unblock that story's "GitHub Actions builds + pushes" requirement. M1.5 builds out the full CI/CD coverage on top of that foundation: `ci.yml` for PRs, `cd-infra.yml` for Bicep changes, polishing of `cd-app.yml` for production-grade quality, deployment annotations, branch protection, ADR for the OIDC federation choice. Three workflows, single environment per PROJECT.md §II.2.11.
+- **Acceptance Criteria (post-M1.4 baseline):**
   - [ ] `ci.yml` runs on every PR; fails on lint or test errors; posts Bicep `what-if` diff as a PR comment when `infra/**` changed
-  - [ ] `cd-infra.yml` triggers only on push to `main` with paths under `infra/**`; deploys via OIDC
-  - [ ] `cd-app.yml` triggers only on push to `main` with paths under `backend/**` or `frontend/**`; builds container, pushes to ACR, updates Container App revision, smoke-tests `/health` before promoting traffic
-  - [ ] Both CD workflows use OIDC federation with a service principal scoped to the single RG (no secrets in repo)
-  - [ ] Service principal role assignments documented in README
+  - [ ] `cd-infra.yml` triggers only on push to `main` with paths under `infra/**`; deploys via OIDC; reuses the federated identity from M1.4
+  - [ ] `cd-app.yml` polished beyond M1.4 MVP: traffic-shifting smoke gate (deploy revision, health-check, then shift 100%), revision retention policy, build cache for faster rebuilds
   - [ ] App Insights deployment annotation created on every successful deploy (release event with commit SHA)
-  - [ ] Status badges in README for all three workflows
-  - [ ] All three green on `main`
+  - [ ] Status badges in README for all three workflows; replace M1.1 placeholder badge
+  - [ ] All three workflows green on `main` after a representative test (one no-op infra commit, one no-op app commit, one PR cycle)
+  - [ ] Branch protection rule on `main`: PRs require `ci.yml` to pass before merge
   - [ ] Rollback procedure documented in README (`az containerapp revision activate ...`, Foundry agent rollback note)
+  - [ ] **ADR 0002** written: "OIDC federation for Azure access from GitHub Actions" — captures the auth model decision, the Entra app + federated credential setup, and the rationale (no long-lived secrets in the repo). Decision was effectively made in M1.4; M1.5 codifies it.
 - **Closed:**
-- **Notes:**
+- **Notes:** M1.4 borrows `cd-app.yml` in MVP form (build + push + container-app update + basic smoke). M1.5 hardens it.
 
 ### M1.6 — Foundry project + Azure OpenAI provisioned
 - **Status:** 🔵
@@ -461,6 +464,7 @@
 
 ## Change Log
 
+- **v4.3 (2026-05-03)** — Owner-driven scope rebalance for M1.4/M1.5. M1.4 expanded to absorb the minimum-viable CD pipeline (first `cd-app.yml`, OIDC federation bootstrap script, Container Apps Bicep module). M1.5 trimmed to "polish & full coverage" (ci.yml, cd-infra.yml, branch protection, deployment annotations, ADR 0002 for OIDC). Trade-off: M1.4 takes ~2x longer but Phase 1+Phase 2 cold-start orchestration becomes real after closure rather than diagrammed-only. Story count unchanged at 30.
 - **v4.2 (2026-05-03)** — M1.3.5 closed 🟢. Status snapshot updated (4/30, 13%); M1 milestone now 4/7 (57%). First real Azure deploy verified end-to-end: cold-start 186 s, idempotent re-run 33 s, teardown clean with KV purged. Cost meter back to $0/day idle. M1.4 AC needs to fold the deferred `/health` smoke test from M1.3.5.
 - **v4.1 (2026-05-02)** — M1.3 closed 🟢. Status snapshot updated (3/30, 10%).
 - **v4.0 (2026-05-02)** — Aligned to PROJECT.md v3.2. Story count 28 → 30: added M1.3.5 (lifecycle scripts) and M4.7.5 (interview walkthrough runbook).
