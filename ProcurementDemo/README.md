@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.11-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
-> A portfolio-grade demonstration of an enterprise agentic procurement workflow on Microsoft Azure. Generic, original, and built to showcase architectural patterns: multi-agent orchestration with LangGraph, durable workflows with Azure Durable Functions, RAG over Azure AI Search, an MCP-style tool layer, guardrails, memory, and full observability.
+> A portfolio-grade demonstration of an enterprise agentic procurement workflow on Microsoft Azure AI Foundry. Generic, original, and built to showcase architectural patterns: multi-agent orchestration via Microsoft Agent Framework v1.0 + Foundry Workflows, retrieval-augmented generation through Foundry IQ, an MCP-native tool layer via Foundry Toolbox, guardrails, agent memory, and full observability through Foundry Control Plane.
 
 ---
 
@@ -12,15 +12,15 @@
 
 | Pattern | Where to look |
 |---|---|
-| Multi-agent LLM orchestration | `backend/agents/`, `docs/PROJECT.md` §II.2.5 |
-| Durable, stateful workflows | `backend/orchestrators/`, `docs/PROJECT.md` §II.2.4 |
-| RAG with hybrid search + citations | `backend/rag/`, `docs/PROJECT.md` §II.2.8 |
-| MCP-style read-only tool layer | `backend/tools/`, `docs/PROJECT.md` §II.2.6 |
+| Multi-agent orchestration (MAF v1.0) | `backend/agents/`, `docs/PROJECT.md` §II.2.5 |
+| Foundry Workflows (graph orchestration) | `backend/workflows/`, `docs/PROJECT.md` §II.2.4 |
+| RAG via Foundry IQ (hybrid search + citations) | `backend/rag/`, `docs/PROJECT.md` §II.2.8 |
+| MCP-native tool layer via Foundry Toolbox | `backend/tools/`, `docs/PROJECT.md` §II.2.6 |
 | Guardrails (schema, injection, policy, confidence) | `backend/guardrails/`, `docs/PROJECT.md` §II.2.3 |
-| AI telemetry & cost observability | `backend/telemetry/`, `docs/PROJECT.md` §II.2.9 |
+| Foundry Control Plane + App Insights observability | `backend/telemetry/`, `docs/PROJECT.md` §II.2.9 |
 | Azure-native IaC (Bicep) | `infra/` |
 | GitHub Actions CI/CD with OIDC | `.github/workflows/` |
-| RAG + agent eval suite | `tests/evals/` |
+| RAG + agent eval suite (incl. Foundry agent evals) | `tests/evals/` |
 
 ---
 
@@ -37,7 +37,11 @@ Additional documents (added later in the build):
 
 - `docs/adrs/` — Architecture Decision Records
 - `docs/demo-script.md` — added in M4.5
-- `docs/foundry-migration.md` — added in M4.7 (paper design)
+- `docs/production-posture.md` — added in M4.7 (paper design)
+
+### Architecture Decisions
+
+- [ADR 0001 — Microsoft Foundry + Microsoft Agent Framework, not LangGraph standalone](docs/adrs/0001-foundry-and-maf-not-langgraph-standalone.md)
 
 ---
 
@@ -45,7 +49,7 @@ Additional documents (added later in the build):
 
 See **[`docs/BACKLOG.md`](docs/BACKLOG.md)** — Status Snapshot at the top.
 
-The architecture is **frozen at v2.0** — see **[`docs/PROJECT.md`](docs/PROJECT.md)**.
+The architecture is **frozen at v3.1** — see **[`docs/PROJECT.md`](docs/PROJECT.md)**.
 
 ---
 
