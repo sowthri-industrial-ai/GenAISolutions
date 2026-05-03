@@ -106,6 +106,9 @@ venv.bak/
 # Azure
 .azure/
 
+# Bicep build artifacts (regenerated on every `az bicep build`)
+infra/**/*.json
+
 # IDEs / editors
 .idea/
 .vscode/

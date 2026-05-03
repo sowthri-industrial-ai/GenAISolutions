@@ -1,0 +1,14 @@
+name: procurement-agentic-demo
+metadata:
+  template: procurement-agentic-demo@0.0.1
+
+infra:
+  provider: bicep
+  path: infra
+
+services: {}
+
+hooks:
+  postdown:
+    shell: sh
+    run: 'echo "Resource group purged"'
